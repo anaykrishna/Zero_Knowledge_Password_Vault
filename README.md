@@ -30,7 +30,7 @@ A secure, client-side password management application that implements zero-knowl
 ### Backend
 - **Node.js** - Server runtime
 - **Express.js** - Web framework
-- **Database** - Stores encrypted data only
+- **PostgreSQL** - Database
 
 ## Installation
 
