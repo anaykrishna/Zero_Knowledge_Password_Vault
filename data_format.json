@@ -1,0 +1,8 @@
+{
+  "service": "github",
+  "username": "user1",
+  "encryptedPassword": {
+    "iv": [],
+    "data": []
+  }
+}
