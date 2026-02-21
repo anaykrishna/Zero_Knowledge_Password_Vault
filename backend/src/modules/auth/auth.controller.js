@@ -11,9 +11,11 @@ export async function login(req, res) {
 }
 
 export async function register(req, res){
-  const {email, password} = req.body;
-
-  await authService.registerUser(email, password);
-
-  res.status(201).json({ message : "User Registered"});
+  try {
+    const {email, password} = req.body;
+    await authService.registerUser(email, password);
+    res.status(201).json({ message : "User Registered"});
+  } catch(err) {
+    res.status(400).json({ error: err.message });
+  }
 }

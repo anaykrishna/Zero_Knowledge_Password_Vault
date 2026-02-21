@@ -17,7 +17,7 @@ export async function deriveKey(password, salt){
     {
       name : 'PBKDF2',
       salt,
-      iterations : 100_00,
+      iterations : 100_000,
       hash : 'SHA-256',   
     },
     keyMaterial,

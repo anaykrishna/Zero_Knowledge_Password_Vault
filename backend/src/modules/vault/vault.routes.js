@@ -7,6 +7,6 @@ const router = express.Router();
 router.post('/', authMiddleware, savePassword);
 router.get('/', authMiddleware, getVault);
 router.delete('/:id', authMiddleware, deletePassword);
-router.put('/id:', authMiddleware, updatePassword);
+router.put('/:id', authMiddleware, updatePassword);
 
 export default router;

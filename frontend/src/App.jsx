@@ -1,4 +1,4 @@
-import {BrowserRouter, Routes, Route} from 'react-router-dom';
+import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom';
 import { useState } from 'react';
 import Register from './pages/Register.jsx'
 import Login from './pages/login.jsx';
@@ -12,6 +12,8 @@ export default function App(){
   return(
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Navigate to="/login" replace />} />
+        
         <Route path="/register" element={<Register />}></Route>
 
         <Route 

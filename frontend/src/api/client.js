@@ -15,7 +15,7 @@ export async function apiRequest(path, method, body, token = null){
     body : body ? JSON.stringify(body) : null,
   });
 
-  const data = res.json();
+  const data = await res.json();
 
   if(!res.ok){
     throw new Error(data.error || "Request Failed");
