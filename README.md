@@ -1,42 +1,43 @@
-# Zero Knowledge Password Vault
+# 🔐 Zero Knowledge Password Vault
 
-A secure, client-side password management application that implements zero-knowledge architecture. Your passwords are encrypted locally and never transmitted to servers in plaintext.
+A secure, client-side password management application that implements zero-knowledge architecture. Your passwords are encrypted locally using the Web Crypto API and never transmitted to the server in plaintext — not even the server can read them.
 
 ## Features
 
 - **Zero-Knowledge Architecture** - Passwords are encrypted on your device before being sent anywhere
-- **End-to-End Encryption** - AES encryption ensures only you can access your passwords
-- **No Server-Side Decryption** - The server never has access to your master key or passwords
-- **Local First** - Encryption happens entirely on your machine
-- **Secure Authentication** - Master password protection for all stored credentials
-- **Easy Organization** - Organize and manage multiple passwords efficiently
-- **Fast & Responsive** - Modern frontend interface for quick access
+- **AES-256-GCM Encryption** - Industry-standard encryption with a unique IV per entry
+- **PBKDF2 Key Derivation** - Master password is never sent to the server; used only to derive the encryption key locally (100,000 iterations)
+- **No Server-Side Decryption** - The server stores only ciphertext and never has access to your master password or keys
+- **JWT Authentication** - Stateless, token-based auth with 1-hour expiry
+- **bcrypt Password Hashing** - Master password is hashed with 12 salt rounds before storage
+- **SQL Injection Prevention** - All queries use parameterized statements
 
 ## How It Works
 
-1. **Registration** - Create a master password (never transmitted to the server)
-2. **Encryption** - All passwords are encrypted locally using your master password
-3. **Storage** - Only encrypted data is sent to the server
-4. **Retrieval** - Data is downloaded and decrypted only on your device
-5. **Privacy** - Even the server cannot access your passwords
+1. **Registration** - A unique random salt is generated server-side and stored against your account
+2. **Login** - The salt is returned to the browser; combined with your master password it derives an AES-256 key via PBKDF2 — this key never leaves your device
+3. **Encryption** - Every password is encrypted with AES-256-GCM in the browser before being sent to the server
+4. **Storage** - The server stores only the ciphertext (`{ iv, data }`) — it has no way to decrypt it
+5. **Retrieval** - Encrypted data is fetched and decrypted entirely on your device using the in-memory key
 
 ## Tech Stack
 
 ### Frontend
-- **JavaScript** - Core frontend logic
-- **HTML/CSS** - User interface
-- **Modern Browser APIs** - For local encryption
+- **React + Vite** - Component-based UI with fast dev server
+- **React Router** - Client-side routing and protected routes
+- **Web Crypto API** - Native browser API for AES-256-GCM encryption and PBKDF2 key derivation
 
 ### Backend
-- **Node.js** - Server runtime
-- **Express.js** - Web framework
-- **PostgreSQL** - Database
+- **Node.js + Express** - REST API server
+- **PostgreSQL** - Relational database for users and vault entries
+- **bcrypt** - Password hashing
+- **jsonwebtoken** - JWT signing and verification
 
 ## Installation
 
 ### Prerequisites
 - Node.js (v14 or higher)
-- npm or yarn
+- PostgreSQL running locally
 
 ### Setup
 
@@ -46,57 +47,77 @@ A secure, client-side password management application that implements zero-knowl
    cd Zero_Knowledge_Password_Vault
    ```
 
-2. **Install dependencies**
-   ```bash
-   npm install
+2. **Set up the database**
+
+   Create a PostgreSQL database and run the following schema:
+   ```sql
+   CREATE TABLE users (
+     id               SERIAL PRIMARY KEY,
+     email            TEXT UNIQUE NOT NULL,
+     password_hash    TEXT NOT NULL,
+     encryption_salt  BYTEA NOT NULL
+   );
+
+   CREATE TABLE vault_entries (
+     id                 SERIAL PRIMARY KEY,
+     user_id            INTEGER REFERENCES users(id) ON DELETE CASCADE,
+     service            TEXT NOT NULL,
+     username           TEXT NOT NULL,
+     encrypted_password JSONB NOT NULL,
+     created_at         TIMESTAMP DEFAULT NOW()
+   );
    ```
 
-3. **Start the backend server**
+3. **Configure environment variables**
+
+   Create a `.env` file inside the `backend/` folder:
+   ```env
+   DATABASE_URL=postgresql://your_user:your_password@localhost:5432/your_db
+   JWT_SECRET=your_secret_key_here
+   ```
+
+4. **Start the backend server**
    ```bash
    cd backend
    npm install
    npm start
    ```
+   Server runs on `http://localhost:3000`
 
-4. **Start the frontend (in a new terminal)**
+5. **Start the frontend (in a new terminal)**
    ```bash
    cd frontend
    npm install
-   npm start
+   npm run dev
    ```
-
-5. **Access the application**
-   Open your browser and go to `http://localhost:3000`
+   App runs on `http://localhost:5173`
 
 ## Usage
 
 ### Creating an Account
-1. Click "Sign Up" on the login page
-2. Create a strong master password (this is your only way to access your passwords)
-3. Confirm your password
+1. Go to `/register`
+2. Enter your email and choose a strong master password
+3. Your account is created — a unique encryption salt is generated for you
 
 ### Adding a Password
 1. Log in with your master password
-2. Click "Add New Password"
-3. Enter the service name, username, and password
-4. Click "Save" - it will be encrypted locally and stored securely
+2. Enter the service name, username/email, and password in the vault form
+3. Click **Save** — the password is encrypted in your browser before being stored
 
 ### Viewing Passwords
-1. Click on any saved password entry
-2. Your master password will decrypt it for viewing
-3. Copy to clipboard or reveal the password
+1. All entries load decrypted automatically after login (decryption happens in-browser)
+2. Passwords are hidden by default — click 👁 to reveal an individual entry
 
-### Deleting Passwords
-1. Select the password entry you want to remove
-2. Click "Delete" 
-3. Confirm the deletion
+### Editing & Deleting Passwords
+1. Click **Edit** on any entry to modify it inline — the updated password is re-encrypted before saving
+2. Click **Delete** to permanently remove an entry
 
 ## Security Considerations
 
-- **Master Password** - Choose a strong, unique master password. If lost, passwords cannot be recovered
-- **No Recovery Option** - For security, there's no password recovery. Store your master password safely
-- **Local Encryption** - All encryption happens on your device before transmission
-- **HTTPS Only** - Always use HTTPS in production for data transmission
+- **Master Password** - Choose a strong, unique master password. If lost, passwords cannot be recovered since the server has no way to derive your key
+- **No Recovery Option** - For security, there is no password recovery. Store your master password safely
+- **Local Encryption** - All encryption and decryption happens on your device; only ciphertext is ever transmitted
+- **HTTPS Only** - Always deploy behind HTTPS in production to protect data in transit
 - **Browser Security** - Keep your browser and OS updated for maximum security
 
 ## Project Structure
@@ -105,29 +126,54 @@ A secure, client-side password management application that implements zero-knowl
 Zero_Knowledge_Password_Vault/
 ├── backend/
 │   ├── server.js
-│   ├── routes/
-│   ├── models/
-│   └── package.json
-├── frontend/
-│   ├── index.html
-│   ├── styles.css
 │   ├── app.js
-│   └── package.json
-├── data_format.json
+│   ├── config/
+│   │   └── db.js
+│   └── modules/
+│       ├── auth/
+│       │   ├── auth.controller.js
+│       │   ├── auth.middleware.js
+│       │   ├── auth.routes.js
+│       │   ├── auth.service.js
+│       │   ├── jwt.js
+│       │   └── password.js
+│       └── vault/
+│           ├── vault.controller.js
+│           ├── vault.routes.js
+│           └── vault.service.js
+├── frontend/
+│   └── src/
+│       ├── api/
+│       │   └── client.js
+│       ├── components/
+│       │   └── ProtectedRoute.jsx
+│       ├── crypto/
+│       │   ├── encrypt.js
+│       │   └── keyDerivation.js
+│       ├── pages/
+│       │   ├── login.jsx
+│       │   ├── Register.jsx
+│       │   └── vault.jsx
+│       ├── App.jsx
+│       └── main.jsx
 └── README.md
 ```
 
 ## API Endpoints
 
 ### Authentication
-- `POST /auth/register` - Create a new account
-- `POST /auth/login` - Login with email and password hash
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create a new account |
+| POST | `/api/auth/login` | Login — returns JWT and encryption salt |
 
-### Passwords
-- `GET /api/passwords` - Retrieve all encrypted passwords
-- `POST /api/passwords` - Save a new encrypted password
-- `DELETE /api/passwords/:id` - Delete a password entry
-- `PUT /api/passwords/:id` - Update a password entry
+### Vault (requires `Authorization: Bearer <token>`)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/vault` | Retrieve all encrypted entries |
+| POST | `/api/vault` | Save a new encrypted entry |
+| PUT | `/api/vault/:id` | Update an existing entry |
+| DELETE | `/api/vault/:id` | Delete an entry |
 
 ## Contributing
 
@@ -139,45 +185,11 @@ Contributions are welcome! Please follow these steps:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## Security Audit
-
-This project implements client-side encryption, but for production use, consider:
-- Independent security audit
-- Penetration testing
-- Code review from security experts
-- Compliance with data protection regulations (GDPR, etc.)
-
-## Roadmap
-
-- [ ] Browser extensions for Chrome and Firefox
-- [ ] Mobile app (iOS/Android)
-- [ ] Two-factor authentication
-- [ ] Password strength indicators
-- [ ] Bulk password import/export
-- [ ] Dark mode
-- [ ] Biometric authentication support
-
 ## Limitations
 
-- Master password cannot be recovered if forgotten
-- Passwords are only as secure as your master password strength
-- Server-side security depends on proper HTTPS and server hardening
-- Browser vulnerabilities could potentially expose decrypted data in memory
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Support
-
-For issues, feature requests, or questions:
-1. Open an issue on GitHub
-2. Provide clear description of the problem
-3. Include steps to reproduce (if applicable)
-
-## Disclaimer
-
-This application is provided "as-is" for educational purposes. While it implements zero-knowledge architecture, use it at your own risk. For storing highly sensitive credentials, consider established password managers like Bitwarden, 1Password, or KeePass.
+- Master password cannot be recovered if forgotten — this is by design
+- Passwords are only as secure as the strength of your master password
+- Browser vulnerabilities could theoretically expose decrypted data held in memory
 
 ## Author
 
